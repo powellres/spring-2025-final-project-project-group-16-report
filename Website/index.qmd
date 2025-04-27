@@ -1,0 +1,11 @@
+---
+title: "Spring 2025 DSAN 6725: Group 16 Final Project"
+---
+
+This is a Quarto website.
+
+To learn more about Quarto websites visit <https://quarto.org/docs/websites>.
+
+```{r}
+1 + 1
+```
