@@ -2,10 +2,272 @@
 title: "Spring 2025 DSAN 6725: Group 16 Final Project"
 ---
 
-This is a Quarto website.
 
-To learn more about Quarto websites visit <https://quarto.org/docs/websites>.
+# **EncourageBot- A Multi-Agent Framework for Intelligent Code Support**
 
-```{r}
-1 + 1
-```
+By Sheeba Moghal, Powell Sheagren, Ishaan Babbar, Yuting Fan
+
+# Abstract
+
+In many coding environments, developers—especially those still learning—often face a lack of supportive feedback. Most tools focus heavily on identifying mistakes or optimizing performance, but few offer constructive encouragement, guidance, and help with key software practices like documentation. Motivated by this gap,  **EncourageBot**: a multi-agent AI system designed to guide, encourage, and assist users throughout the coding process has been created.  
+EncourageBot is built using LangChain, LangGraph, and Amazon Bedrock, and integrates a Retrieval-Augmented Generation (RAG) system to pull real-world technical documentation on demand. The goal is to create an assistant that goes beyond simple correction, offering users tailored suggestions, helpful documentation, and positive reinforcement as they write and refine their code.
+
+The system is structured around several specialized agents. These include a code reviewer, a code executor, a documentation generator, a README file creator, and a technical question responder. A dedicated **Route Agent** orchestrates these components, ensuring smooth transitions between tasks and preventing common issues such as infinite loops or redundant operations.  
+EncourageBot’s retrieval capabilities are powered by a FAISS vector database, enabling fast and accurate access to content from core libraries like LangChain, LangGraph, and LangSmith. By integrating this retrieval layer with Bedrock-hosted language models, EncourageBot provides context-aware assistance grounded in real documentation rather than relying purely on general model knowledge.
+
+Ultimately, EncourageBot aims to create a more positive and practical coding experience. By offering guidance, documentation support, and encouragement, it serves as a learning companion that helps developers not only fix problems but also build better coding habits.
+
+# Introduction
+
+This is our take on the first hypothetical project given but focusing more on code documentation and cleaning, in addition to being an encouraging coach. Creating comprehensive code documentation and maintaining clean, well-commented code is often a tedious and time-consuming task, which, despite being necessary, can slow a project down at the final step. We created an Agentic AI system which addresses this challenge by offering an intelligent system that streamlines documentation, error detection, and code analysis, whilst promoting active developer learning rather than simply providing direct answers. 
+
+For each of the agents, carefully tailored prompts that AI already understands as well as downloaded documentation from other packages were used, which will be discussed in depth. This report discusses the data sources for the Retrieval Augmented Generation pipeline for technical documentation related questions, system design, multi-agent architecture, routing logic, retrieval pipeline, evaluation methods, and responsible AI considerations, with a final conclusion.
+
+# Data Source and Preparation
+
+Our Retrieval Augmented Generation Agent’s primary goal is to pull relevant documentation for descriptions of various functions as well as formatting for custom documentation made for functions. To do this, we downloaded the documentation from public data libraries such as those in the LangChain ecosystem, including key libraries like LangChain, LangGraph, and LangSmith as PDFs. There will be a full list of the documents used in the appendix.
+
+Once we had a suitable number of documents, our next step was to convert these PDFs into text documents. We chose to use plain text files as our primary data format because they’re lightweight, easy to parse, and ideal for feeding into a Retrieval-Augmented Generation (RAG) model. By converting PDFs and other structured documents into plain text, we avoid the hassle of format inconsistencies and reduce preprocessing time. This clean format ensures a more uniform vector base, making it easier to extract relevant content and generate consistent responses. 
+
+In order to make this conversion, we used the package docling to convert all of the files. Docling does this using the local machine, so we made use of the *G5* AWS instance to transform all the files. We now had a folder filled with related text files, which we were ready to plug into an RAG pipeline to be used by the agent. By integrating this system with our Agentic AI, we aim to provide accurate code documentation, context-aware debugging, and intelligent reference lookup based on real documentation. This approach gives our project a scalable foundation that can grow as we expand into more complex use cases and additional libraries.
+
+# Retrieval Augmented Generation
+
+## Overview of RAG
+
+Retrieval-Augmented Generation (RAG) enhances language models by incorporating relevant information from external knowledge sources, ensuring more accurate and contextually rich responses. Our implementation involves document retrieval, embedding generation, and large language model (LLM)-based response generation. The process is streamlined through FAISS (Facebook AI Similarity Search) as the vector store, Bedrock’s *amazon.titan-embed-text-v1* embedding model, and Amazon Bedrock’s *Nova-Micro-v1* LLM for generating responses. This is useful specifically for our idea of having RAG implemented to retrieve technical documents which are pdf documentations about the latest technological tools such as LangChain and OPENAI.
+
+## Embedding
+
+The retrieval mechanism relies on text embeddings generated using the following: Bedrock’s *amazon.titan-embed-text-v1* embedding model is used for encoding text documents into dense vector representations optimized for retrieval tasks. It converts tokenized text into numerical embeddings that capture semantic similarity. Future enhancements include experimenting with OpenAI’s *ADA* embeddings, *Cohere’s* embedding models, and custom fine-tuned models to optimize retrieval performance based on domain-specific text.
+
+## Vector Database Creation with FAISS
+
+To efficiently store and retrieve text embeddings, FAISS is utilized as the vector database. The pipeline follows these steps: PDF-to-text extraction converts documents to text using standard preprocessing techniques. Document processing involves tokenization and chunking using NLTK for optimal retrieval performance. The extracted text is transformed into embeddings using the *amazon.titan-embed-text-v1* model. The generated embeddings are stored in FAISS, ensuring fast similarity searches. The FAISS index is periodically saved locally to enable efficient and scalable retrieval.
+
+## Retrieval Techniques and Future Considerations
+
+The primary retrieval mechanism involves querying the FAISS index to find the most relevant document chunks based on cosine similarity. Future iterations will incorporate hybrid search techniques such as BM25 with Dense Retrieval and Sparse-Dense Fusion (SPLADE) to improve accuracy. Exploring knowledge graph-based retrieval techniques will help better handle structured and hierarchical information. Evaluating Dense Passage Retrieval (DPR) for domain-specific applications and ColBERT for more efficient retrieval using late interaction models is also a priority.
+
+## LLMs for Text Generation
+
+Amazon Bedrock’s *Nova-Micro-v1* LLM is integrated using LangChain AWS, enabling the generation of context-aware responses by leveraging retrieved documents. This integration was easier to implement due to simple interaction between the retrieval and generation components, ensuring that responses are grounded in relevant source material. Additionally, LangChain's integration with AWS makes it easy to adapt the system to different domains and use cases.
+
+Future iterations will explore OpenAI’s *GPT-4*, and *Claude*, and fine-tuned local models to improve accuracy and latency.
+
+## Query-to-context Matching
+
+At the moment we've mostly been using one-shot prompts with a basic instruction list which includes context for how the LLM can be helpful. Going forward we may update this instruction, tailor different RAG models to different purposes in the application, and/or fine-tune the LLM so that it can better translate the results from the RAG into a response which fits the requirements.
+
+# Agents
+
+At the heart of this entire system are the specialised agents, which are each designed to focus on a narrow set of responsibilities. Hence, we have implemented a multi-component system using the Langchain framework as a foundation. Our approach essentially focuses on designing conversational agents, more of our assistants, which can leverage specialised tools to address our targeted areas of documentation, code commenting, code execution, code analysis, while behaving as an encouraging coach rather than providing direct solutions, as most Large Language Models usually do. This is a slight deviation from the general usage of Generative AI, which is a great use case tool to be implemented to prevent Generative AI’s dependency on direct solutions. 
+
+## Agent Ideology  
+
+In a traditional single-agent system, a single agent is expected to interpret the prompt, use the model, route, retrieve, reason, comment, document and do all the expected tasks within the same flow, but due to its fragility and its ability to maintain all the responsibilities does not make it a reliable setup, especially with increased complexity.  
+ In contrast, the multiagent system divides responsibilities across special units where each agent is focused on a narrow set of skills. By separating all the responsibilities, each agent can be designed, tested, and improved independently, without disturbing other setups.  
+
+Hence, a Graphical Multi-Agent Architecture was chosen, which refers to designing of each designated agent as a node in a graph (or in a model called ‘state machine’), where flow between agents is decided by the edges based on conditions or user inputs.   
+	This architecture was chosen due to its branching, where based on specific keywords, different responsible agents get activated. Using LangGraph, it gives fine-grained control over the agent transitions, ensuring strict rules with a single “manager” (called **Supervisor**). 
+
+## Agent Functionality
+
+Handling multiple agents with different responsibilities which were demanded by the user is not just basic task management, but rather a conscious state of routing and for dynamic transition. Hence, utilising LangGraph, a backbone was built to host all these agents in a complex distributed system. Ideally, the execution flow begins at the ‘START’ mode, which transitions into a Supervisor Agent who is responsible for analysing the user output and based on specific keywords or prompts used, it updates the ‘current\_route’ within the agent’s shared state. This ‘current\_route’ field acts like a routing ticket informing the next step of which specialised agent should handle the user’s request. Rather than using just static decision sequences, conditional edges were added which allow the system to choose the next node at runtime by updating the ‘current\_route’ value through a special routing agent defined. This flexibility ensures that whichever agent the supervisor selects, goes through the routing agent and chooses only the activated agent without the unnecessary hops through the unrelated nodes. Once the selected agent finishes its task, it immediately transitions to an ‘END’ node.  
+This design had to be specifically set up, which is different from the traditional LangChain Multi Agent Framework, where the system is designed to rely solely on the Supervisor Agent to dispatch tasks directly to specialised agents. However, though this worked for a two agent setup, it kept invoking multiple agents in sequence, though only single action was expected when all the five agents were set up. Without the inclusion of memory of the last routing decision, the Supervisor could not prevent going through all the available nodes, leading to unpredictable behaviors and recursion errors. 
+
+To address this, a dedicated **Route Agent** was introduced, which unlike the functional nodes, the Route Agent doesn’t perform any task by itself but simply reads the ‘current\_route’ field from the session state and redirects the flow to the correct specialised agent. This lightweight intermediary broke the recursive loops and nature of the graphical multi agent setup to create a clear routing logic. Whatever agent the Supervisor invokes first is neatly executed by the Route Agent. This small architecture change to the system was crucial to maintain stability. 
+
+## Agent Design 
+
+![](Agent Image.png)
+As each agent is focused on a narrow set of responsibilities, the **Supervisor Agent** plays as the central manager, controlling the actions of all its “workers”, which are the tasked agents. When a user message is received, it identifies the intent using carefully designed prompts and through matched keywords, with updating the agent state, with a current route. This ensures the user queries are routed dynamically to the right agent without activating those which are not required.   
+The **Reviewer Agent** on the other hand, acts more like a thoughtful and supportive mentor, which is responsible for reviewing the ‘.ipynb’ or ‘.py’ files. It extracts the code cells, goes through the code and based on the prompt, not only provides the summaries but also highlights the potential bugs or any coding errors in an encouraging manner. As its crucial task, it never provides any direct solutions unless explicitly requested, and this nudging fosters learning, and allows users to discover answers themselves. But, when the users want to execute the code, the **Executer Agent** takes over, and runs the provided Python code, captures any outputs or errors and reports back. For the documentation, the **Doc Agent** automatically reads notebooks, adds doctrings and comments into the code, improves code readability without changing any of the code.
+
+On the other hand, the **Readme Agent** generates professional ‘README.md’ file by summarising the content of all the project files, but what is limited about this tool is that usually, most repositories have huge files, which makes it difficult for the Large Language Model to ingest all and give a well-formatted ‘README.md’ file. Hence, set file and text size are chosen. 
+
+Finally, when users seek information about LangChain, LangGraph, or related topics, the **RAG Agent** is triggered. It is great at retrieving all the technical documentation, chunks and crafts responses to include definition, real world examples and detailed explanations.   
+Hence, each agent is independent but interconnected through the graphical structure, showcasing a great network of agents.
+
+## Model Selection and Bedrock Integration
+
+For the agent setup, Amazon Bedrock’s *Nova Micro v1* was used which made it easy to securely access a powerful list of models without setting up any complex infrastructure. Nova is fast, cost-effective and decent enough for tasks for what we need. Due to Bedrock’s managed set up, it was easy to focus on building agent logic rather than worrying about hosting the model. In future, it would be great to switch to a stronger model through Bedrock.
+
+# Fine-Tuning
+
+At this stage, fine-tuning isn’t necessary because the system’s needs are well-covered by prompt engineering and retrieval-based techniques. Modern foundation models already perform well in coding-related tasks, and by designing clear agent roles and prompts, we can guide the chatbot to offer helpful suggestions, encouragement, and context-aware support without modifying the model itself.  
+The current setup uses a Retrieval-Augmented Generation (RAG) pipeline, combining a powerful language model with vector-based search (via FAISS) over the LangChain, LangGraph, and LangSmith documentation. This allows the system to deliver accurate, up-to-date answers without the added complexity or cost of fine-tuning. It’s a more flexible and maintainable approach, especially since the source material will likely evolve. For now, this strategy strikes a solid balance between effectiveness and efficiency.
+
+# Tools, and Frameworks
+
+## Tools
+
+* **Amazon Bedrock** \-  Allowed access to powerful foundation models like Nova-Micro-v1 without needing to manage infrastructure ourselves. Due to high-availability access to LLMs through simple API, it allows us to focus on agent development and retrieval integration  
+* **Amazon Sagemaker** \- Used as the development and execution environment for building, training, and deploying the EncourageBot system. SageMaker provided scalable GPU resources for tasks like document processing, model testing, and large-scale text embedding generation.  
+* **Docling** \- Docling was used to transform the pdfs we downloaded into txt files usable by the RAG system.  
+* **Steamlit** \- We use the streamlit function to develop a front end interface for implementing our RAG and Agent systems for our prompts. The chatbot acts as as a code documentation assistant to help with the users coding request and providing sample outputs.   
+* **Ragas** \- Used ragas to take the documents made for the RAG system, convert them into generated user prompts, and evaluate the effectiveness of different RAG systems for their accuracy and other metrics.  
+* **Python** \-The primary development language across all components,
+
+## Frameworks:
+
+### Retrieval Augmented Generation
+
+* **FAISS (Facebook AI Similarity Search)**: Used to store and index the document embeddings efficiently. It allowed for high-speed similarity search, allowing for the RAG agent to quickly retrieve the most relevant sections of documentation.
+
+### Agentic AI in LangGraph
+
+* **LangChain**: Provided the foundation for building conversational agents capable of reasoning, memory management, and tool use. It served as the core agent orchestration framework.  
+* **LangGraph**: Extended this by introducing graph-based orchestration, allowing us to design a state machine where each agent is represented as a node and control flow is determined dynamically based on user input and conditions.
+
+# Evaluation of Effectiveness
+
+We use a variety of evaluation tools to keep track of progress. First, we will be using the *ragas* package to analyze the performance of the RAG portion of our model, using measures like faithfulness, context recall, and answer relevancy to evaluate the model's ability to find relevant documentation. We will also be using Perplexity to interface with the ability of the LLM as a whole and even attempt to use the LLM as a judgment framework to grasp whether or not the response was adequate. We hope that these measures will help us pinpoint issues in our model as well and allow us to optimize for better performance and accuracy.
+
+## RAG Evaluation
+
+In order to assess the effectiveness of the RAG portion of our project, we utilized ragas’ ability to generate test questions and answers before plugging that data into another ragas function to test the output. The results for the models we tested are below
+
+| Model | Context Recall | Faithfulness | Factual Correctness |
+| :---- | :---- | :---- | :---- |
+| Amazon Titan Embedding v1 | .2176 | .1111 | .5400 |
+| Amazon Titan Embedding v2 | .2182 | .0815 | .5344 |
+| Bge small en | .1914 | .1049 | .5259 |
+
+In ragas evaluation, three important metrics are used to judge a RAG system. Context Recall checks if the answer uses the relevant information retrieved from documents. Faithfulness measures whether the answer sticks closely to what the documents say, avoiding made-up facts. Factual Correctness ensures the final response is factually true. Together, these metrics help evaluate if the system retrieves useful information and generates accurate, trustworthy answers. For reference, a score is better for all of the categories
+
+Based on our results from the two models we evaluated, we decided to go forward with the Amazon titan embedding v1 model since it had the highest score on two out of three of the categories and a comparable value on the third. While the factual correctness of all the models was suitably high we did find some of the lower context recall and faithfulness scores to be concerning. However, we were okay with the results as our agent is not using the RAG pipeline in the same way that a user would. This gives us more room to play with the context-recall and faithfulness while we really just need the results to be factually correct when sent into the rest of the system.
+
+## Agentic System Evaluation
+
+To ensure the multi-agent assistant performs reliably and offers a positive user experience, we’ve put together a structured evaluation plan that covers all system components — including code review, LangChainDocsQA, code execution, documentation generation, and README creation. Rather than focusing only on technical performance, the plan also looks closely at how the assistant interacts with users, especially when offering support, encouragement, or clarifying technical documentation.
+
+The first part of the evaluation focuses on agent routing logic—whether the assistant can choose the right “persona” or function based on the type of user input. For example, users who seem stuck or unsure should trigger EncourageBot, which is designed to offer hints and encouragement instead of straight answers. On the other hand, when someone asks a specific question about LangChain tools or APIs, the LangChainDocsQA agent should take over and pull accurate responses from local documentation.
+
+To make this more concrete, we’ve designed a set of test cases that simulate common scenarios: debugging a Python loop, asking for the difference between LangChain tools, or starting a custom agent project. These interactions help evaluate not just whether the assistant gets the right answer, but how it responds—whether it’s supportive, informative, or gracefully handles things that fall outside its domain.
+
+Finally, for the documentation generation feature, we put together a diverse set of Python code snippets that reflect real-world use cases. These range from simple functions—like basic math or string manipulation—to more involved scripts using libraries such as os, json, and pandas. We also included more advanced examples involving object-oriented programming, decorators, and context managers. To really test the system’s flexibility, we added messier code samples and scripts using tools like scikit-learn, LangChain, and even user-defined modules. The goal here is to see how well the assistant handles a wide spectrum of code—clean, complex, or chaotic—and whether it can still produce helpful, accurate documentation. Once the assistant generates its output, a second model reviews it, scoring each response on four fronts: correctness, clarity, completeness, and usefulness. This gives us a well-rounded sense of how effective and practical the documentation really is across different kinds of coding challenges.
+
+# Frontend Development 
+
+For our development in the front end, the system created helps identify user intent through specific pattern recognition that users might create when asking the bot. This can distinguish between code requests, documentation, explanations, and refactoring suggestions. We use the multi-agent approach mentioned before to make specific personas for our chatbot, such as a simple code explainer that explains code to you, and an encouraging mentor that guides you without solving the entire problem. 
+
+By using these approaches rather than just simply generating solutions for the user, our tool encourages users and developers alike to help learn and understand their code by creating their own solutions instead of handing it to them.
+
+# Responsible AI Considerations
+
+We took a few different responsible AI considerations into account. One of the first was that all of the data we put into our RAG pipeline was publicly shared and downloadable, ensuring no violation of proprietary rights. If we were to charge for our service, we would better compensate the organizations we downloaded them from but in this case, we will accept the public nature of it as enough. 
+
+We also designed the system to prioritise user empowerment over dependency. This ensures transparency, fairness, and respect for intellectual property whilst encouraging responsible use of AI-assisted coding tools. We would rather have a system that guides the user rather than providing one off answers to questions, leaving it as more of an educator.
+
+In our evaluation, we also added some human in the loop evaluation to ensure that the model is not reaching any self satisfying loops in the process. We want to be sure that when humans interact with the tool that it will not deviate from its directive. To this end we are also working towards adding security measures so that the processes of the system cannot be hijacked by malicious actors.
+
+# Findings and Insights
+
+Through building EncourageBot, we demonstrated that a graphical and agent-based architecture significantly improves flexibility and reliability over traditional single-agent systems.  The introduction of a Route Agent solved the critical issue of infinite loops and allowed dynamic, context-sensitive transitions between tasks.
+
+We also found that integrating Retrieval-Augmented Generation (RAG) with a lightweight, fast vector database like FAISS — combined with Amazon Bedrock's LLMs — provided a highly responsive and accurate technical Q\&A system without the need for fine-tuning models.
+
+Evaluation results using Ragas showed that while initial retrieval quality (context recall) and answer faithfulness were modest, the system performed well in factual correctness, demonstrating that real document grounding was effective. With further improvements in embeddings and retrieval strategies, future versions can improve contextual matching even more.
+
+Overall, EncourageBot proved that combining specialized agents, lightweight retrieval, and thoughtful prompt design can create a more supportive, educational, and responsible AI coding assistant compared to typical solution-providing chatbots.
+
+# Demo
+
+[The Demo for this project can be found here](https://drive.google.com/file/d/1w_8eRBAkY695tvmyF4ooMfVrEL3oUi8p/view?usp=sharing)
+
+# Conclusions and Future Work
+
+EncourageBot illustrates the power of agentic AI systems in real-world applications, providing technical and enterprise coding support that emphasises encouragement, context awareness and RAG based answers without hallucinations. We hope that our model works as a goalpost as a structure for responsible AI assistance.
+
+This system would be particularly useful for student environments, coding bootcamps, and for the enterprise onboarding process, where the goal is not just getting code but also fostering learning, problem-solving, and technical growth, which in a way is different from traditional Generative AI’s offering. This helps us reduce dependency on AI for complete answers and improve our developer skills.
+
+As future development, the plan is to enhance EncourageBot in several areas for Testing (for unit test generations), Refactoring Agent (for optimising messy code), and the Debugging Agent (to explain error traces more clearly as a slight setup as EncourageBot). The plan is to also improve the retrieval systems to enhance document retrieval with hybrid search techniques and better chunking methods to improve context recall and faithfulness. In addition to this, emphasis will be placed on transitioning into a more powerful and specialised model hosted on Bedrock.  
+
+# Appendix
+
+1. ## Documentation References
+
+## The following documentation sources were used throughout the development and evaluation of the Retrieval-Augmented Generation (RAG) system to support implementation, integration, and evaluation of various components:
+
+1. ###  **LangChain Documentation**
+
+### **URL:** [LangChain API Reference](https://api.python.langchain.com/en/v0.1/langchain_api_reference.html)
+
+### This reference was essential for understanding the LangChain framework’s core classes and methods, including chains, prompts, retrievers, and agents, used in constructing the RAG pipeline.
+
+2. ### **LangSmith Documentation**
+
+### **URL:** [LangSmith Python Reference](https://docs.smith.langchain.com/reference/python/reference)
+
+### Used for experiment tracking and debugging. This documentation supported logging and tracing execution for observability and evaluation during iterative development.
+
+3. ###  **LangGraph Documentation**
+
+### **URL:** [LangGraph Reference](https://langchain-ai.github.io/langgraph/reference/)
+
+### This source provided guidance on creating and managing complex conversational flows using graph-based state machines for advanced control over agent interactions.
+
+4. ###  **LangServe Documentation**
+
+### **URL:** [LangServe Docs](https://python.langchain.com/v0.1/docs/langserve/)
+
+### Referred to for deploying LangChain applications as APIs. Helped enable backend services to expose chains and agents through HTTP endpoints for frontend integration.
+
+5. ### **OpenAI API Documentation**
+
+### **URL:** [https://platform.openai.com/docs](https://platform.openai.com/docs)
+
+### Served as the primary resource for integrating OpenAI LLMs. Included authentication, usage limits, and API parameters critical to response generation within the RAG framework.
+
+6. ### **pdoc Documentation**
+
+### **URL:**[https://pdoc.dev/docs/pdoc.html](https://pdoc.dev/)
+
+### Used to auto-generate API documentation for custom Python modules. This tool aided internal documentation consistency and readability for debugging and collaboration.
+
+# References 
+
+Kartha, V. K. (2024, March 31). Hierarchical AI agents: Create a supervisor AI agent using LangChain. Medium. https://vijaykumarkartha.medium.com/hierarchical-ai-agents-create-a-supervisor-ai-agent-using-langchain-315abbbd4133  
+LangChain. (n.d.). RetrievalQA. LangChain Documentation. Retrieved April 28, 2025, from https://python.langchain.com/api\_reference/langchain/chains/langchain.chains.retrieval\_qa.base.RetrievalQA.html  
+LangChain. (n.d.). ReAct agent type. LangChain Documentation. Retrieved April 28, 2025, from https://python.langchain.com/v0.1/docs/modules/agents/agent\_types/react/  
+LangChain. (n.d.). Python tool integration. LangChain Documentation. Retrieved April 28, 2025, from https://python.langchain.com/v0.2/docs/integrations/tools/python/  
+LangChain. (n.d.). Streamlit callback integration. LangChain Documentation. Retrieved April 28, 2025, from https://python.langchain.com/v0.2/docs/integrations/callbacks/streamlit/  
+LangChain. (n.d.). Using AgentExecutor. LangChain Documentation. Retrieved April 28, 2025, from https://python.langchain.com/docs/how\_to/agent\_executor/  
+LangChain. (n.d.). Create a tool-calling agent. LangChain Documentation. Retrieved April 28, 2025, from https://python.langchain.com/api\_reference/langchain/agents/langchain.agents.tool\_calling\_agent.base.create\_tool\_calling\_agent.html  
+LangChain. (n.d.). ReAct agent type. LangChain Documentation. Retrieved April 28, 2025, from https://python.langchain.com/v0.1/docs/modules/agents/agent\_types/react/  
+LangChain. (n.d.). Agent with memory. LangChain Documentation. Retrieved April 28, 2025, from https://python.langchain.com/v0.1/docs/modules/memory/agent\_with\_memory/  
+LangChain. (n.d.). Messages concept. LangChain Documentation. Retrieved April 28, 2025, from https://python.langchain.com/docs/concepts/messages/  
+Reddit user. (2024, April). I built an AI agent that adds meaningful comments. Reddit. https://www.reddit.com/r/AI\_Agents/comments/1jk7poi/i\_built\_an\_ai\_agent\_that\_adds\_meaningful\_comments/  
+JaimonJK. (2024, March 27). How can large token limits in new LLM models transform the learning and development function? Medium. https://medium.com/@jaimonjk/how-can-large-token-limits-in-new-llm-models-transform-the-learning-and-development-function-5fc643c8df0d  
+Mulani, A. L. (2024, April 4). Multi-agent with LangGraph. Medium. https://medium.com/@ashpaklmulani/multi-agent-with-langgraph-23c26e9bf076  
+AWS Machine Learning Blog. (2024, April 15). Build a multi-agent system with LangGraph and Mistral on AWS. Amazon Web Services. https://aws.amazon.com/blogs/machine-learning/build-a-multi-agent-system-with-langgraph-and-mistral-on-aws/
+
+[https://vijaykumarkartha.medium.com/hierarchical-ai-agents-create-a-supervisor-ai-agent-using-langchain-315abbbd4133](https://vijaykumarkartha.medium.com/hierarchical-ai-agents-create-a-supervisor-ai-agent-using-langchain-315abbbd4133)
+
+[https://python.langchain.com/api\_reference/langchain/chains/langchain.chains.retrieval\_qa.base.RetrievalQA.html](https://python.langchain.com/api_reference/langchain/chains/langchain.chains.retrieval_qa.base.RetrievalQA.html)
+
+[https://python.langchain.com/v0.1/docs/modules/agents/agent\_types/react/](https://python.langchain.com/v0.1/docs/modules/agents/agent_types/react/)
+
+[https://python.langchain.com/v0.2/docs/integrations/tools/python/](https://python.langchain.com/v0.2/docs/integrations/tools/python/)
+
+[https://python.langchain.com/v0.2/docs/integrations/callbacks/streamlit/](https://python.langchain.com/v0.2/docs/integrations/callbacks/streamlit/)
+
+[https://python.langchain.com/docs/how\_to/agent\_executor/](https://python.langchain.com/docs/how_to/agent_executor/)
+
+[https://python.langchain.com/api\_reference/langchain/agents/langchain.agents.tool\_calling\_agent.base.create\_tool\_calling\_agent.html](https://python.langchain.com/api_reference/langchain/agents/langchain.agents.tool_calling_agent.base.create_tool_calling_agent.html)
+
+[https://python.langchain.com/v0.1/docs/modules/agents/agent\_types/react/](https://python.langchain.com/v0.1/docs/modules/agents/agent_types/react/)
+
+[https://python.langchain.com/v0.1/docs/modules/memory/agent\_with\_memory/](https://python.langchain.com/v0.1/docs/modules/memory/agent_with_memory/)
+
+[https://python.langchain.com/docs/concepts/messages/](https://python.langchain.com/docs/concepts/messages/)
+
+[https://www.reddit.com/r/AI\_Agents/comments/1jk7poi/i\_built\_an\_ai\_agent\_that\_adds\_meaningful\_comments/](https://www.reddit.com/r/AI_Agents/comments/1jk7poi/i_built_an_ai_agent_that_adds_meaningful_comments/)
+
+[https://medium.com/@jaimonjk/how-can-large-token-limits-in-new-llm-models-transform-the-learning-and-development-function-5fc643c8df0d](https://medium.com/@jaimonjk/how-can-large-token-limits-in-new-llm-models-transform-the-learning-and-development-function-5fc643c8df0d)
+
+[https://medium.com/@ashpaklmulani/multi-agent-with-langgraph-23c26e9bf076](https://medium.com/@ashpaklmulani/multi-agent-with-langgraph-23c26e9bf076)
+
+[https://aws.amazon.com/blogs/machine-learning/build-a-multi-agent-system-with-langgraph-and-mistral-on-aws/](https://aws.amazon.com/blogs/machine-learning/build-a-multi-agent-system-with-langgraph-and-mistral-on-aws/) —\> IMP
+
