@@ -1,5 +1,7 @@
 ---
 title: "Spring 2025 DSAN 6725: Group 16 Final Project"
+html:
+  embed-resources: true
 ---
 
 # **EncourageBot- A Multi-Agent Framework for Intelligent Code Support**
