@@ -167,7 +167,7 @@ To address this, a dedicated **Route Agent** was introduced, which unlike the fu
 
 ## Agent Design  {#agent-design}
 
-![](Agent image.png) 
+![](Agent Image.png) 
 Figure 1: Multi-Agent Workflow
 
 As each agent is focused on a narrow set of responsibilities, the **Supervisor Agent** plays as the central manager, controlling the actions of all its “workers”, which are the tasked agents. When a user message is received, it identifies the intent using carefully designed prompts and through matched keywords, with updating the agent state, with a current route. This ensures the user queries are routed dynamically to the right agent without activating those which are not required.   
